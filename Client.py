@@ -4,11 +4,15 @@ import time
 import sys
 
 class Client(object):
-  def __init__(self, address='127.0.0.1', port=12345):
+  def __init__(self, address='127.0.0.1', port=12345, tests=None, debug=False, name="Client"):
     self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     self.address = address
     self.port = port
+    self.tests = tests
+    self.debug = debug
+    self.name = name
   
+  # START REFERENCE: https://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
   def send_msg(self, sock, msg):
     # Prefix each message with a 4-byte length (network byte order)
     msg = struct.pack('>I', len(msg)) + msg
@@ -32,39 +36,25 @@ class Client(object):
               return None
           data.extend(packet)
       return data
-  
-  def tests(self):
-    tests = [
-    ]
-    return tests
+# END REFERENCE: https://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
 
-  def run(self, tests=None):
+  def run(self):
     self.socket.connect((self.address, self.port))
-    # self.socket.send(b'set cxb32423 9\r\n')
-    # self.socket.send(b'someValue\r\n')
-    # self.send_msg(self.socket, b'set cxb3adsfasdfs2423 9\r\n')
-    # self.send_msg(self.socket, b'someValue\r\n')
-    # msg = input()
-    # msg += ' \r\n'
-    clientTests = self.tests() if tests is None else tests
+    clientTests = self.tests
     totalTests = len(clientTests)
     passedTests = 0
     for msg, ans in clientTests:
 
       self.send_msg(self.socket, msg)
-      # response = self.recv_msg(self.socket).decode('ascii').strip()
       response = self.recv_msg(self.socket)
-      # print(response)
-      # print(ans)
       if response == ans:
         passedTests+=1
-      print('result:', 'SUCCESS' if response == ans else 'FAIL', 'message:', msg)
+      if self.debug:
+        print(self.name, 'result:', 'SUCCESS' if response == ans else 'FAIL')
     
-    print('Tests passed:', passedTests, 'of', totalTests)
+    print(self.name, 'Tests passed:', passedTests, 'of', totalTests)
 
-    print('Closing socket')
     self.socket.close()
-    print('Exiting')
     sys.exit()
 
   
