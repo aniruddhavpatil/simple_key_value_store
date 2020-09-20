@@ -1,5 +1,7 @@
 import socket
 import struct
+import time
+import sys
 
 class Client(object):
   def __init__(self, address='127.0.0.1', port=12345):
@@ -30,13 +32,40 @@ class Client(object):
               return None
           data.extend(packet)
       return data
+  
+  def tests(self):
+    tests = [
+    ]
+    return tests
 
-  def run(self):
+  def run(self, tests=None):
     self.socket.connect((self.address, self.port))
-    self.send_msg(self.socket, b'message')
-    response = self.socket.recv(1024)
-    print(response)
+    # self.socket.send(b'set cxb32423 9\r\n')
+    # self.socket.send(b'someValue\r\n')
+    # self.send_msg(self.socket, b'set cxb3adsfasdfs2423 9\r\n')
+    # self.send_msg(self.socket, b'someValue\r\n')
+    # msg = input()
+    # msg += ' \r\n'
+    clientTests = self.tests() if tests is None else tests
+    totalTests = len(clientTests)
+    passedTests = 0
+    for msg, ans in clientTests:
+
+      self.send_msg(self.socket, msg)
+      # response = self.recv_msg(self.socket).decode('ascii').strip()
+      response = self.recv_msg(self.socket)
+      # print(response)
+      # print(ans)
+      if response == ans:
+        passedTests+=1
+      print('result:', 'SUCCESS' if response == ans else 'FAIL', 'message:', msg)
+    
+    print('Tests passed:', passedTests, 'of', totalTests)
+
+    print('Closing socket')
     self.socket.close()
+    print('Exiting')
+    sys.exit()
 
   
   def greet(self):
