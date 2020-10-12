@@ -9,6 +9,7 @@ import threading
 class Server(object):
     def __init__(self, networkConfig=('localhost', 12345), debug=False):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(None)
         self.socket.bind(networkConfig)
         self.store = os.path.join(os.getcwd(), 'store')
         self.debug = debug
@@ -47,8 +48,8 @@ class Server(object):
         if self.checkKey(key):
             retrievedFile = open(os.path.join(self.store, key), 'r')
             toSend = retrievedFile.read()
-            message = 'VALUE ' + key + ' ' + str(len(toSend)) + ' \r\n '
-            message = message + toSend + ' \r\n' + ' END\r\n'
+            message = 'VALUE ' + key + ' ' + str(len(toSend)) + ' \r\n'
+            message = message + toSend + '\r\n' + ' END\r\n'
             self.send_msg(c, str.encode(message))
         else:
             message = 'VALUE ' + key + ' 0\r\n' + '\r\n' + ' END\r\n'
@@ -56,7 +57,12 @@ class Server(object):
 
     def set(self, c, key, value, size):
         if len(value) != int(size):
+            print(value)
+            print('#' * 30)
+            print(size)
+            print(len(value), int(size))
             self.send_msg(c, b'NOT-STORED\r\n')
+            print('Size mismatch')
             return
         try:
             outPath = os.path.join(self.store, key)
@@ -65,11 +71,40 @@ class Server(object):
             out.close()
             self.send_msg(c, b'STORED\r\n')
         except:
+            print('Failed to write to fs')
+            self.send_msg(c, b'NOT-STORED\r\n')
+    
+    def append(self, c, key, value, size):
+        if len(value) != int(size):
+            print(value)
+            print('#' * 30)
+            print(size)
+            print(len(value), int(size))
+            self.send_msg(c, b'NOT-STORED\r\n')
+            print('Size mismatch')
+            return
+        try:
+            outPath = os.path.join(self.store, key)
+            out = open(outPath, 'a+')
+            out.write(value + '\n')
+            out.close()
+            self.send_msg(c, b'STORED\r\n')
+        except:
+            print('Failed to write to fs')
             self.send_msg(c, b'NOT-STORED\r\n')
 
     def parseMessage(self, message):
-        parsedMessage = message.decode('ascii')
-        parsedMessage = parsedMessage.split(' ')
+        parsedMessage = message.decode('utf-8')
+        parsedMessage = parsedMessage.split('\r\n')
+        if len(parsedMessage[1]) > 0:
+            first = parsedMessage[0].split(' ')
+            second = parsedMessage[1]
+            return [*first, second]
+        else:
+            parsedMessage = parsedMessage[0].split(' ')
+        
+        # print(parsedMessage)
+
         return parsedMessage
 
     def validateMessage(self, message):
@@ -78,9 +113,9 @@ class Server(object):
         if message[0] == "get":
             if len(message) != 3:
                 return False
-        if message[0] == "set":
-            if len(message) != 6:
-                return False
+        if message[0] == "set" or "append":
+            if len(message) < 6:
+                return True
         return True
 
     def connectionThread(self, connection):
@@ -100,6 +135,9 @@ class Server(object):
                             connection, parsedMessage[1], parsedMessage[4], parsedMessage[2])
                     elif parsedMessage[0] == "get":
                         self.get(connection, parsedMessage[1])
+                    elif parsedMessage[0] == "append":
+                        self.append(
+                            connection, parsedMessage[1], parsedMessage[4], parsedMessage[2])
             except KeyboardInterrupt:
                 if connection:
                     connection.close()

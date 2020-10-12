@@ -7,6 +7,7 @@ import sys
 class Client(object):
     def __init__(self, networkConfig=('localhost', 12345), tests=None, debug=False, name="Client"):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(5)
         self.networkConfig = networkConfig
         self.tests = tests
         self.debug = debug
@@ -14,9 +15,9 @@ class Client(object):
 
     def createMessage(self, command, key=None, value=None):
         message = ''
-        if command == 'set':
+        if command == 'set' or command == 'append':
             if key is not None and value is not None:
-                message = command + ' ' + key + ' ' + str(len(value)) + ' \r\n' + ' ' + value + ' \r\n'
+                message = command + ' ' + key + ' ' + str(len(value)) + ' \r\n' + value + '\r\n'
             else:
                 return None
         elif command == 'get':
@@ -93,23 +94,34 @@ class Client(object):
 
     def get(self, key):
         message = self.createMessage('get', key=key)
-        print('message',message)
+        # print('message',message)
         self.send(message)
         response = self.receive()
-        print(response)
+        response = response.decode(encoding='utf-8').split('\r\n')
+        required_size = int(response[0].split(' ')[2])
+        if required_size == len(response[1]) and required_size > 0:
+            return response[1]
+        return None
 
     def set(self, key, value):
         message = self.createMessage('set', key=key, value=value)
-        print('message', message)
+        # print('message', message)
         self.send(message)
         response = self.receive()
-        print(response)
+        # print(response)
+    
+    def append(self, key, value):
+        message = self.createMessage('append', key=key, value=value)
+        # print('message', message)
+        self.send(message)
+        response = self.receive()
+        # print(response)
 
 
 if __name__ == '__main__':
     client = Client()
     client.connect()
-    client.get('key24')
-    client.set('key24', 'lol')
-    client.get('key24')
+    # client.get('key24')
+    # client.append('key24', 'lol2')
+    # print(client.get('key24'))
     # client.run()
