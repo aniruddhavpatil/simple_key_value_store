@@ -1,1 +1,1 @@
-# fs-key-value-store
+# Simple Key Value Store
